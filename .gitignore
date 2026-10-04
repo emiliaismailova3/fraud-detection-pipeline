@@ -1,0 +1,18 @@
+# Data is downloaded from Kaggle, never committed
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Trained model artifacts (the final small one is added explicitly)
+models/*
+!models/.gitkeep
+
+# Secrets and local settings
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
