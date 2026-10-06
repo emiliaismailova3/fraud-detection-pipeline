@@ -1,0 +1,6 @@
+{
+  "pr_auc": 0.4181,
+  "roc_auc": 0.85,
+  "recall_at_1%_alerts": 0.2315,
+  "precision_at_1%_alerts": 0.8065
+}

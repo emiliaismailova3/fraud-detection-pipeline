@@ -1,0 +1,4 @@
+{
+  "model": "lightgbm",
+  "alert_threshold": 0.7316794412954153
+}

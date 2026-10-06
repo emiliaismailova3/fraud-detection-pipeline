@@ -4,9 +4,12 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Trained model artifacts (the final small one is added explicitly)
+# Trained model artifacts: only the small files the API needs are committed
 models/*
 !models/.gitkeep
+!models/lightgbm.txt
+!models/preprocessor.joblib
+!models/api_config.json
 
 # Secrets and local settings
 .env
