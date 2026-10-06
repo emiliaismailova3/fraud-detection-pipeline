@@ -6,6 +6,8 @@ Raw data is loaded into PostgreSQL, behavioural features are built with SQL
 window functions, gradient boosting is compared against a hand-written PyTorch
 network, and the best model is served as a containerised REST API.
 
+**▶ Live demo: [fraud-risk-demo.onrender.com](https://fraud-risk-demo.onrender.com)**: score real transactions in the browser (free hosting: the first request after a pause can take up to a minute while the service wakes up).
+
 | | |
 |---|---|
 | **Best model** | LightGBM: **PR-AUC 0.515**, ROC-AUC 0.902 on a held-out future month |
@@ -99,6 +101,7 @@ what a real-time system knows when a payment arrives, so there is no target leak
 - Demo page at `/` (plain HTML + JavaScript, no extra framework) with three real test-month transactions: legitimate, borderline and fraud
 - Alert threshold chosen on the validation month (top 1% of scores), not on test
 - Slim Docker image with only inference dependencies, running as a non-root user
+- Deployed on Render from `render.yaml` (infrastructure as code): Render builds `docker/Dockerfile` straight from this repo
 - `tests/test_parity.py` checks that the API reproduces offline model scores on real
   transactions, guarding against training/serving skew
 
@@ -146,8 +149,8 @@ curl -X POST http://localhost:8080/predict -H "Content-Type: application/json" \
   from a feature store or the PostgreSQL feature layer.
 - About 45 of 430 raw columns are used (memory budget of a laptop); the anonymised `V*`
   columns would likely add a few PR-AUC points.
-- Next: cloud deployment (Google Cloud Run), an XGBoost + LightGBM + MLP ensemble, and
-  probability calibration.
+- Next: an XGBoost + LightGBM + MLP ensemble, probability calibration, and deployment on a
+  major cloud (Google Cloud Run) with monitoring.
 
 ## Project structure
 
