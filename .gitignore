@@ -19,3 +19,6 @@ __pycache__/
 *.pyc
 .venv/
 .ipynb_checkpoints/
+
+# Generated deployment bundles
+build/
