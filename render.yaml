@@ -1,0 +1,12 @@
+# Render Blueprint: deploys the inference API from docker/Dockerfile.
+# Render builds the image from this GitHub repo and injects $PORT, which the
+# Dockerfile's CMD already listens on.
+services:
+  - type: web
+    name: fraud-risk-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
