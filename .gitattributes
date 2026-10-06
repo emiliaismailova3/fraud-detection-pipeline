@@ -1,0 +1,4 @@
+# Keep Unix line endings everywhere: shell scripts break with CRLF on Linux
+* text=auto eol=lf
+*.png binary
+*.joblib binary
