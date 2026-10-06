@@ -1,0 +1,11 @@
+# Keep the build context small: Docker uploads everything not listed here
+data/
+notebooks/
+reports/
+tests/
+.git/
+.env
+**/__pycache__/
+models/*.npy
+models/*.pt
+models/xgboost.json
