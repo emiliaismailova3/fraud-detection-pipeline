@@ -6,6 +6,7 @@ would come from a feature store or the PostgreSQL feature layer; here the
 caller sends them, which keeps the service stateless and easy to deploy.
 
 Run locally:  uvicorn src.api.main:app --reload
+Demo page:    http://localhost:8000/
 Docs:         http://localhost:8000/docs
 """
 import json
@@ -16,12 +17,14 @@ import joblib
 import lightgbm as lgb
 import pandas as pd
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from src.config import CATEGORICAL, MODELS, NUMERIC
 from src.preprocess import as_category
 
 MODEL_DIR = Path(MODELS)
+STATIC_DIR = Path(__file__).parent / "static"
 preprocessor = joblib.load(MODEL_DIR / "preprocessor.joblib")
 booster = lgb.Booster(model_file=str(MODEL_DIR / "lightgbm.txt"))
 api_config = json.loads((MODEL_DIR / "api_config.json").read_text())
@@ -101,6 +104,12 @@ app = FastAPI(
     description="Scores a card transaction with a LightGBM model trained on IEEE-CIS data.",
     version="1.0.0",
 )
+
+
+@app.get("/", include_in_schema=False)
+def demo_page() -> FileResponse:
+    """Human-friendly demo: a form that calls /predict and shows the verdict."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")

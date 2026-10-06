@@ -12,6 +12,10 @@ network, and the best model is served as a containerised REST API.
 | **Business view** | Reviewing the top 1% riskiest transactions catches **24% of all fraud** at **84% precision** |
 | **Stack** | PostgreSQL · SQL window functions · pandas · XGBoost · LightGBM · PyTorch · FastAPI · Docker · Linux (WSL2/Ubuntu) |
 
+![Demo page: a real fraudulent transaction from the test month scored at 96%](reports/figures/demo_page.png)
+
+*Interactive demo served by the same container at `/`: pick a real transaction from the test month or edit the fields, and the API returns the fraud probability and a review decision.*
+
 **Skills shown:** SQL data modelling and window functions · leakage-free feature engineering ·
 imbalanced classification · time-based validation · PyTorch (`nn.Module`, embeddings,
 manual training loop) · REST API design · Docker · automated tests incl. training/serving parity.
@@ -92,6 +96,7 @@ what a real-time system knows when a payment arrives, so there is no target leak
 
 ### 4. Serving (`src/api/`, `docker/`)
 - FastAPI service: `POST /predict` returns the fraud probability and an alert flag; `GET /health`
+- Demo page at `/` (plain HTML + JavaScript, no extra framework) with three real test-month transactions: legitimate, borderline and fraud
 - Alert threshold chosen on the validation month (top 1% of scores), not on test
 - Slim Docker image with only inference dependencies, running as a non-root user
 - `tests/test_parity.py` checks that the API reproduces offline model scores on real
@@ -126,7 +131,7 @@ python -m pytest tests
 # 4. API in Docker
 docker build -f docker/Dockerfile -t fraud-api .
 docker run -p 8080:8080 fraud-api
-# open http://localhost:8080/docs
+# demo page: http://localhost:8080/   ·   API docs: http://localhost:8080/docs
 ```
 
 Example request:

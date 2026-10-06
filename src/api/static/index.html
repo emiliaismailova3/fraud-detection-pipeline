@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fraud Risk Demo</title>
+<meta name="description" content="Score a card transaction with a LightGBM fraud model trained on 590k real payments.">
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1b1f24; --muted: #5f6b7a; --border: #e3e7ec;
+    --accent: #2f5fd0; --accent-soft: #e8eefc;
+    --low: #1f8a4c; --low-soft: #e5f5ec; --mid: #b7791f; --mid-soft: #fbf1df; --high: #c53030; --high-soft: #fde8e8;
+    --track: #e9edf2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --text: #e8ecf1; --muted: #9aa5b4; --border: #2a313b;
+      --accent: #7aa2ff; --accent-soft: #1d2840;
+      --low: #4cc584; --low-soft: #15291e; --mid: #e2a94a; --mid-soft: #2e2413; --high: #f17171; --high-soft: #331717;
+      --track: #262d36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 48px; }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 720px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 24px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+  .stat b { color: var(--text); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .examples button { flex: 1 1 150px; text-align: left; border: 1px solid var(--border); background: var(--bg);
+                     color: var(--text); border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; }
+  .examples button:hover, .examples button.active { border-color: var(--accent); background: var(--accent-soft); }
+  .examples small { display: block; color: var(--muted); font-size: 12px; }
+  fieldset { border: 0; padding: 0; margin: 0 0 14px; }
+  legend { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+  @media (max-width: 420px) { .fields { grid-template-columns: 1fr; } }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+                  border-radius: 8px; padding: 8px 10px; width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  details { margin: 4px 0 16px; font-size: 13px; color: var(--muted); }
+  details pre { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+                overflow: auto; max-height: 220px; font-size: 12px; color: var(--text); }
+  .primary { width: 100%; border: 0; border-radius: 10px; padding: 12px; font: inherit; font-weight: 600;
+             background: var(--accent); color: #fff; cursor: pointer; }
+  .primary:disabled { opacity: .6; cursor: wait; }
+  .result { position: sticky; top: 16px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px 10px; }
+  .prob { font-size: 56px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .prob-label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .bar { position: relative; height: 12px; background: var(--track); border-radius: 999px; margin: 22px 0 6px; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; transition: width .4s ease; }
+  .bar .threshold { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--text); opacity: .55; }
+  .bar-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .verdict { margin-top: 18px; border-radius: 10px; padding: 12px 14px; font-weight: 600; }
+  .verdict small { display: block; font-weight: 400; margin-top: 2px; }
+  .low  { color: var(--low);  background: var(--low-soft); }
+  .mid  { color: var(--mid);  background: var(--mid-soft); }
+  .high { color: var(--high); background: var(--high-soft); }
+  .facts { margin: 16px 0 0; padding: 0; list-style: none; font-size: 13px; }
+  .facts li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); }
+  .facts li span:first-child { color: var(--muted); }
+  .truth { font-weight: 600; }
+  .error { color: var(--high); font-size: 13px; margin-top: 10px; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Card Fraud Risk Scoring</h1>
+    <p>A LightGBM model trained on 590,540 real e-commerce payments scores how likely a transaction is fraudulent.
+       Pick a real transaction from the test month (never seen in training), or change the fields yourself.</p>
+  </header>
+  <div class="stats">
+    <span class="stat">Model <b>LightGBM</b></span>
+    <span class="stat">PR-AUC <b>0.515</b></span>
+    <span class="stat">ROC-AUC <b>0.902</b></span>
+    <span class="stat">Top 1% alerts: <b>84%</b> are fraud</span>
+  </div>
+
+  <div class="grid">
+    <form class="card" id="form" autocomplete="off">
+      <h2>Transaction</h2>
+      <p class="hint">Start from a real example, then try changing the amount, time or customer history.</p>
+
+      <div class="examples" id="examples"></div>
+
+      <fieldset>
+        <legend>Payment</legend>
+        <div class="fields">
+          <label>Amount, USD <input name="amt" type="number" step="0.001" min="0.01" required></label>
+          <label>Hour of day (0–23) <input name="hour" type="number" min="0" max="23"></label>
+          <label>Product code
+            <select name="product_cd"><option>W</option><option>C</option><option>R</option><option>H</option><option>S</option></select>
+          </label>
+          <label>Device
+            <select name="device_type"><option value="">Unknown</option><option value="mobile">Mobile</option><option value="desktop">Desktop</option></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Card and customer</legend>
+        <div class="fields">
+          <label>Card network
+            <select name="card4"><option>visa</option><option>mastercard</option><option>american express</option><option>discover</option></select>
+          </label>
+          <label>Card type
+            <select name="card6"><option>debit</option><option>credit</option></select>
+          </label>
+          <label>Payer email domain
+            <select name="p_emaildomain">
+              <option>gmail.com</option><option>yahoo.com</option><option>hotmail.com</option><option>outlook.com</option>
+              <option>aol.com</option><option>icloud.com</option><option>anonymous.com</option><option>live.com.mx</option>
+            </select>
+          </label>
+          <label>Customer's average past amount <input name="uid_prev_mean_amt" type="number" step="0.01" min="0" placeholder="no history"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Recent activity of this customer</legend>
+        <div class="fields">
+          <label>Payments in the last 24 h <input name="uid_tx_last_24h" type="number" min="0" step="1"></label>
+          <label>Payments in the last hour <input name="uid_tx_last_1h" type="number" min="0" step="1"></label>
+          <label>All previous payments <input name="uid_prev_tx" type="number" min="0" step="1"></label>
+          <label>Same amount paid before <input name="uid_same_amt_prev" type="number" min="0" step="1"></label>
+        </div>
+      </fieldset>
+
+      <details>
+        <summary>Full request sent to the API (<span id="hidden-count">0</span> more fields from the original transaction)</summary>
+        <pre id="payload"></pre>
+      </details>
+
+      <button class="primary" id="submit" type="submit">Score transaction</button>
+      <div class="error" id="error" hidden></div>
+    </form>
+
+    <section class="card result" id="result" aria-live="polite">
+      <div class="empty" id="empty">Choose an example or press <b>Score transaction</b>.</div>
+      <div id="output" hidden>
+        <div class="prob" id="prob">–</div>
+        <div class="prob-label">estimated probability of fraud</div>
+        <div class="bar" aria-hidden="true">
+          <div class="fill" id="fill"></div>
+          <div class="threshold" id="threshold-mark" title="Alert threshold"></div>
+        </div>
+        <div class="bar-scale"><span>0%</span><span id="threshold-label">alert threshold</span><span>100%</span></div>
+        <div class="verdict" id="verdict"></div>
+        <ul class="facts">
+          <li><span>Compared with the average fraud rate (3.5%)</span><span id="ratio">–</span></li>
+          <li><span>Alert threshold (top 1% riskiest payments)</span><span id="threshold">–</span></li>
+          <li id="truth-row" hidden><span>What actually happened</span><span class="truth" id="truth"></span></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    Built with PostgreSQL, SQL window functions, LightGBM, PyTorch, FastAPI and Docker.
+    <a href="/docs">API documentation</a> ·
+    <a href="https://github.com/emiliaismailova3/fraud-detection-pipeline">Source code</a>
+  </footer>
+</div>
+
+<script>
+// Real transactions from the test month (days 152–183), with all fields the model uses.
+const EXAMPLES = [
+  { id: "legit", title: "Regular purchase", note: "Long-time customer, daytime", label: 0,
+    tx: {"amt":34.0,"hour":15,"dist1":14.0,"c1":3.0,"c2":6.0,"c5":0.0,"c6":4.0,"c9":4.0,"c11":3.0,"c13":32.0,"c14":3.0,"d1":254.0,"d2":254.0,"d3":4.0,"d4":192.0,"d10":169.0,"d15":254.0,"has_identity":0,"uid_prev_tx":19,"uid_prev_mean_amt":91.42,"uid_prev_std_amt":48.08,"uid_tx_last_1h":0,"uid_tx_last_24h":0,"card1_tx_last_24h":6,"secs_since_prev_tx":326839.0,"uid_same_amt_prev":0,"product_cd":"W","card4":"visa","card6":"debit","p_emaildomain":"yahoo.com","r_emaildomain":null,"m4":"M0","m5":"F","m6":"T","device_type":null,"card1":"10856","card2":"268","card3":"150","card5":"166","addr1":"264","addr2":"87"} },
+  { id: "medium", title: "Borderline case", note: "Late evening, busy day", label: 1,
+    tx: {"amt":66.153,"hour":22,"dist1":null,"c1":1.0,"c2":1.0,"c5":0.0,"c6":1.0,"c9":0.0,"c11":1.0,"c13":0.0,"c14":0.0,"d1":0.0,"d2":null,"d3":null,"d4":0.0,"d10":0.0,"d15":0.0,"has_identity":1,"uid_prev_tx":5,"uid_prev_mean_amt":30.59,"uid_prev_std_amt":14.38,"uid_tx_last_1h":0,"uid_tx_last_24h":5,"card1_tx_last_24h":19,"secs_since_prev_tx":20942.0,"uid_same_amt_prev":0,"product_cd":"C","card4":"mastercard","card6":"debit","p_emaildomain":"live.com.mx","r_emaildomain":"live.com.mx","m4":"M2","m5":null,"m6":null,"device_type":"mobile","card1":"5812","card2":"408","card3":"185","card5":"224","addr1":null,"addr2":null} },
+  { id: "fraud", title: "Suspicious payment", note: "New card, 7 payments today", label: 1,
+    tx: {"amt":24.346,"hour":19,"dist1":null,"c1":6.0,"c2":9.0,"c5":0.0,"c6":4.0,"c9":0.0,"c11":5.0,"c13":1.0,"c14":1.0,"d1":0.0,"d2":null,"d3":null,"d4":3.0,"d10":0.0,"d15":0.0,"has_identity":1,"uid_prev_tx":7,"uid_prev_mean_amt":74.85,"uid_prev_std_amt":37.70,"uid_tx_last_1h":0,"uid_tx_last_24h":7,"card1_tx_last_24h":8,"secs_since_prev_tx":19412.0,"uid_same_amt_prev":0,"product_cd":"C","card4":"visa","card6":"credit","p_emaildomain":"gmail.com","r_emaildomain":"gmail.com","m4":"M2","m5":null,"m6":null,"device_type":"mobile","card1":"3643","card2":"405","card3":"185","card5":"137","addr1":null,"addr2":null} },
+];
+
+const form = document.getElementById("form");
+const NUMBER_FIELDS = ["amt", "hour", "uid_prev_mean_amt", "uid_tx_last_24h", "uid_tx_last_1h", "uid_prev_tx", "uid_same_amt_prev"];
+let base = { ...EXAMPLES[0].tx };   // hidden fields come from the chosen example
+let current = EXAMPLES[0];
+let edited = false;
+
+function fillForm(tx) {
+  for (const el of form.elements) {
+    if (!el.name) continue;
+    const v = tx[el.name];
+    el.value = v === null || v === undefined ? "" : v;
+  }
+}
+
+function buildPayload() {
+  const payload = { ...base };
+  for (const el of form.elements) {
+    if (!el.name) continue;
+    if (NUMBER_FIELDS.includes(el.name)) payload[el.name] = el.value === "" ? null : Number(el.value);
+    else payload[el.name] = el.value === "" ? null : el.value;
+  }
+  // The model compares recipient and payer domains; keep them consistent with the form
+  if (base.r_emaildomain !== null) payload.r_emaildomain = payload.p_emaildomain;
+  return payload;
+}
+
+function showPayload() {
+  const payload = buildPayload();
+  const visible = new Set([...form.elements].map(e => e.name).filter(Boolean));
+  document.getElementById("hidden-count").textContent = Object.keys(payload).filter(k => !visible.has(k)).length;
+  document.getElementById("payload").textContent = JSON.stringify(payload, null, 2);
+}
+
+function pct(p) {
+  if (p < 0.001) return "<0.1%";
+  return (p * 100).toFixed(p < 0.1 ? 1 : 0) + "%";
+}
+
+function render(score, threshold) {
+  const p = score.fraud_probability;
+  const level = p >= threshold ? "high" : p >= 0.10 ? "mid" : "low";
+  document.getElementById("empty").hidden = true;
+  document.getElementById("output").hidden = false;
+
+  const prob = document.getElementById("prob");
+  prob.textContent = pct(p);
+  prob.className = "prob " + level;
+  prob.style.background = "none";
+
+  const fill = document.getElementById("fill");
+  fill.style.width = Math.max(p * 100, 1) + "%";
+  fill.style.background = `var(--${level})`;
+  document.getElementById("threshold-mark").style.left = threshold * 100 + "%";
+  document.getElementById("threshold-label").textContent = "alert at " + pct(threshold);
+
+  const verdict = document.getElementById("verdict");
+  verdict.className = "verdict " + level;
+  verdict.innerHTML = {
+    high: "🚨 Send to manual review<small>Among the riskiest 1% of payments, where analysts focus their time.</small>",
+    mid:  "⚠️ Approve, but monitor<small>Clearly above average risk, yet below the alert threshold.</small>",
+    low:  "✅ Approve<small>Looks like normal behaviour for this customer.</small>",
+  }[level];
+
+  const ratio = p / 0.035;
+  document.getElementById("ratio").textContent = ratio >= 1 ? ratio.toFixed(1) + "× higher" : (1 / ratio).toFixed(0) + "× lower";
+  document.getElementById("threshold").textContent = pct(threshold);
+
+  const truthRow = document.getElementById("truth-row");
+  truthRow.hidden = edited;
+  const truth = document.getElementById("truth");
+  truth.textContent = current.label ? "Confirmed fraud" : "Legitimate payment";
+  truth.className = "truth " + (current.label ? "high" : "low");
+  truth.style.background = "none";
+}
+
+async function score() {
+  const button = document.getElementById("submit");
+  const error = document.getElementById("error");
+  error.hidden = true;
+  button.disabled = true;
+  button.textContent = "Scoring…";
+  try {
+    const res = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildPayload()),
+    });
+    if (!res.ok) throw new Error(res.status === 422 ? "Please check the fields: amount must be positive, hour 0–23." : "Server error " + res.status);
+    const body = await res.json();
+    render(body, body.threshold);
+  } catch (e) {
+    error.textContent = e.message || "Could not reach the API.";
+    error.hidden = false;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Score transaction";
+  }
+}
+
+const examplesBox = document.getElementById("examples");
+for (const ex of EXAMPLES) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.id = ex.id;
+  b.innerHTML = `${ex.title}<small>${ex.note}</small>`;
+  b.addEventListener("click", () => {
+    current = ex; base = { ...ex.tx }; edited = false;
+    examplesBox.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    fillForm(ex.tx); showPayload(); score();
+  });
+  examplesBox.appendChild(b);
+}
+
+form.addEventListener("input", () => { edited = true; showPayload(); });
+form.addEventListener("submit", e => { e.preventDefault(); score(); });
+
+// Open with a scored example so visitors see a result immediately.
+// ?example=legit|medium|fraud picks which one (handy for sharing links).
+const startId = new URLSearchParams(location.search).get("example") || "fraud";
+(examplesBox.querySelector(`[data-id="${startId}"]`) || examplesBox.lastChild).click();
+</script>
+</body>
+</html>

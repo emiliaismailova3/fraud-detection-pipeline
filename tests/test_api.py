@@ -12,6 +12,12 @@ def test_health():
     assert response.json()["status"] == "ok"
 
 
+def test_demo_page_is_served():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Card Fraud Risk Scoring" in response.text
+
+
 def test_predict_returns_probability():
     payload = {"amt": 117.0, "hour": 3, "product_cd": "C", "card4": "visa",
                "card6": "credit", "p_emaildomain": "gmail.com", "uid_tx_last_24h": 6}
