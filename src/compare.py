@@ -39,6 +39,7 @@ def main() -> None:
     for key, label in MODELS_TO_COMPARE.items():
         metrics = json.loads((REPORTS / f"metrics_{key}.json").read_text())
         scores = np.load(MODELS / f"test_scores_{key}.npy")
+        assert len(scores) == len(y), f"{key}: scores must cover the same test rows as every other model"
         threshold = best_f1_threshold(y_valid, np.load(MODELS / f"valid_scores_{key}.npy"))
         rows.append({
             "model": label,
