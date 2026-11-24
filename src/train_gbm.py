@@ -99,6 +99,12 @@ def main() -> None:
     np.save(MODELS / "test_scores_xgboost.npy", xgb_model.predict_proba(x_te)[:, 1])
     np.save(MODELS / "test_scores_logreg.npy", logreg.predict_proba(xn_te)[:, 1])
 
+    # Validation scores: compare.py picks each model's decision threshold on them
+    xn_va, _ = pre.transform_dense(valid)
+    np.save(MODELS / "valid_scores_lightgbm.npy", valid_scores)
+    np.save(MODELS / "valid_scores_xgboost.npy", xgb_model.predict_proba(x_va)[:, 1])
+    np.save(MODELS / "valid_scores_logreg.npy", logreg.predict_proba(xn_va)[:, 1])
+
 
 if __name__ == "__main__":
     main()

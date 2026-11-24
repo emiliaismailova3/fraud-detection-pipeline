@@ -96,6 +96,7 @@ def main() -> None:
     )
     test_scores = predict(model, test_loader)
     np.save(MODELS / "test_scores_pytorch.npy", test_scores)
+    np.save(MODELS / "valid_scores_pytorch.npy", predict(model, valid_loader))
     save_metrics("pytorch", evaluate(datasets["test"].y.numpy(), test_scores))
 
 

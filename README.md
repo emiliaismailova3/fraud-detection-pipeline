@@ -53,6 +53,31 @@ Random guessing gives PR-AUC ≈ 0.035 (the fraud rate).
 
 ![Feature importance](reports/figures/feature_importance.png)
 
+### Decision threshold
+
+A model outputs a probability; the business needs a yes/no decision. The threshold is
+**always chosen on the validation month** and then applied unchanged to the test month.
+
+- **API threshold: 0.732 (LightGBM)**, the score above which the top **1%** of validation
+  transactions fall. This is an *alert-budget* rule: a fraud team can only review so many
+  cases a day, so the threshold is set by capacity, not by a generic default like 0.5 (with
+  3.5% fraud, a 0.5 cut-off would be arbitrary). At this budget LightGBM catches ~24% of
+  all fraud and ~84% of alerts are real fraud (table above). Stored in `models/api_config.json`.
+- **Max-F1 threshold per model**, the point that balances precision and recall. It is
+  reported for every model in `reports/model_comparison.md`, together with precision, recall
+  and F1 at that threshold. It flags more transactions (higher recall, lower precision); it is
+  the right choice if automatic actions (e.g. 3-D Secure step-up) are cheap.
+- `reports/api_threshold_test.json`: precision / recall / F1 of the API threshold on the test month.
+
+### Unsupervised baseline: Isolation Forest
+
+`src/train_iforest.py` fits an **Isolation Forest without labels** (`contamination` = fraud
+rate in train). Random trees split on random features at random values; an outlier gets
+isolated in **few splits**, so a **short average path = anomaly**. It shows how far
+"unusual" gets us when labels are late or missing (chargebacks arrive weeks later). Its
+limit: fraud that imitates normal behaviour is not an outlier, so it should be expected to
+trail the supervised models, which learn what fraud looks like from labels. Its PR-AUC, recall and precision are in the same comparison table.
+
 ---
 
 ## Pipeline
@@ -94,7 +119,9 @@ what a real-time system knows when a payment arrives, so there is no target leak
 - `preprocess.py`: time split; category vocabulary and scaling fitted on train only
 - `train_gbm.py`: logistic regression baseline, XGBoost and LightGBM with native categorical support and early stopping
 - `nn_model.py` / `train_nn.py`: **PyTorch from scratch**: custom `Dataset`, `nn.Module` with one embedding table per categorical column, hand-written training loop, `BCEWithLogitsLoss` with `pos_weight` for class imbalance, AdamW, early stopping on validation PR-AUC
-- `evaluate.py`: PR-AUC, ROC-AUC and recall/precision at a fixed 1% alert budget
+- `train_iforest.py`: unsupervised Isolation Forest baseline (labels not used for training)
+- `evaluate.py`: PR-AUC, ROC-AUC, recall/precision at a fixed 1% alert budget, and precision/recall/F1 at a decision threshold
+- `compare.py`: one table for all models on the same test month; thresholds chosen on validation
 
 ### 4. Serving (`src/api/`, `docker/`)
 - FastAPI service: `POST /predict` returns the fraud probability and an alert flag; `GET /health`
@@ -128,6 +155,7 @@ bash scripts/setup_env.sh && source ~/.venvs/fraud/bin/activate
 python -m src.build_dataset
 python -m src.train_gbm
 python -m src.train_nn
+python -m src.train_iforest
 python -m src.compare
 python -m pytest tests
 
