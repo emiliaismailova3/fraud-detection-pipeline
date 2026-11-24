@@ -1,0 +1,15 @@
+{
+  "lightgbm_seed_pr_auc": [
+    0.5176,
+    0.5189,
+    0.5124,
+    0.5128,
+    0.5127
+  ],
+  "lightgbm_seed_pr_auc_mean": 0.5149,
+  "lightgbm_seed_pr_auc_std": 0.0031,
+  "valid_pr_auc_lightgbm": 0.5868,
+  "valid_pr_auc_ensemble": 0.5924,
+  "ensemble_chosen_on_validation": true,
+  "test_fraud_usd_total": 477356
+}

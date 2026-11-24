@@ -25,6 +25,7 @@ def test_predict_returns_probability():
     assert response.status_code == 200
     body = response.json()
     assert 0.0 <= body["fraud_probability"] <= 1.0
+    assert body["expected_loss_usd"] == round(body["fraud_probability"] * 117.0, 2)
     assert isinstance(body["alert"], bool)
 
 

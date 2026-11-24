@@ -79,6 +79,7 @@ class Transaction(BaseModel):
 
 class Score(BaseModel):
     fraud_probability: float
+    expected_loss_usd: float = Field(..., description="probability x amount: sort the review queue by this to target the money")
     alert: bool
     threshold: float
     model: str
@@ -124,6 +125,7 @@ def predict(tx: Transaction) -> Score:
     threshold = api_config["alert_threshold"]
     return Score(
         fraud_probability=round(probability, 5),
+        expected_loss_usd=round(probability * tx.amt, 2),
         alert=probability >= threshold,
         threshold=round(threshold, 5),
         model=api_config["model"],

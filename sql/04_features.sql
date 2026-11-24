@@ -27,7 +27,8 @@ WITH base AS (
         -- Approximate customer ID. Vesta does not give a client ID, but D1 is
         -- "days since the card was first used", so (day - D1) is the card's
         -- start day and stays constant for one customer. card1 + addr1 +
-        -- start day is a well-known proxy for "the same person".
+        -- start day is a well-known proxy for "the same person" (popularised by the
+        -- IEEE-CIS 1st-place solution; here every feature built on it uses past rows only).
         t.card1::text || '_' || COALESCE(t.addr1::text, 'na') || '_' ||
             COALESCE(((t.transaction_dt / 86400) - t.d1::int)::text, 'na') AS uid
     FROM raw.train_transaction t

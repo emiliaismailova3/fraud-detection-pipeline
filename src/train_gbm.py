@@ -19,6 +19,30 @@ from src.evaluate import evaluate, save_metrics
 from src.preprocess import Preprocessor, as_category, load_splits, target
 
 
+LGBM_PARAMS = dict(
+    n_estimators=3000,
+    learning_rate=0.03,
+    num_leaves=127,
+    min_child_samples=50,
+    subsample=0.8,
+    subsample_freq=1,
+    colsample_bytree=0.7,
+    cat_smooth=20,
+    n_jobs=-1,
+    verbose=-1,
+)
+
+
+def fit_lightgbm(x_tr, y_tr, x_va, y_va, seed: int, log_every: int = 200) -> lgb.LGBMClassifier:
+    """LightGBM with early stopping on validation PR-AUC (shared with robustness.py)."""
+    model = lgb.LGBMClassifier(**LGBM_PARAMS, random_state=seed)
+    callbacks = [lgb.early_stopping(100, verbose=bool(log_every))]
+    if log_every:
+        callbacks.append(lgb.log_evaluation(log_every))
+    model.fit(x_tr, y_tr, eval_set=[(x_va, y_va)], eval_metric="average_precision", callbacks=callbacks)
+    return model
+
+
 def main() -> None:
     train, valid, test = load_splits()
     y_tr, y_va, y_te = target(train), target(valid), target(test)
@@ -60,25 +84,7 @@ def main() -> None:
     save_metrics("xgboost", evaluate(y_te, xgb_model.predict_proba(x_te)[:, 1]))
 
     # 3. LightGBM. Grows trees leaf-wise (num_leaves) instead of level-wise.
-    lgb_model = lgb.LGBMClassifier(
-        n_estimators=3000,
-        learning_rate=0.03,
-        num_leaves=127,
-        min_child_samples=50,
-        subsample=0.8,
-        subsample_freq=1,
-        colsample_bytree=0.7,
-        cat_smooth=20,
-        random_state=RANDOM_SEED,
-        n_jobs=-1,
-        verbose=-1,
-    )
-    lgb_model.fit(
-        x_tr, y_tr,
-        eval_set=[(x_va, y_va)],
-        eval_metric="average_precision",
-        callbacks=[lgb.early_stopping(100), lgb.log_evaluation(200)],
-    )
+    lgb_model = fit_lightgbm(x_tr, y_tr, x_va, y_va, seed=RANDOM_SEED)
     lgb_model.booster_.save_model(MODELS / "lightgbm.txt")
     save_metrics("lightgbm", evaluate(y_te, lgb_model.predict_proba(x_te)[:, 1]))
 

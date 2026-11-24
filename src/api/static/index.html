@@ -158,6 +158,7 @@
           <div class="threshold" id="threshold-mark" title="Alert threshold"></div>
         </div>
         <div class="bar-scale"><span>0%</span><span id="threshold-label">alert threshold</span><span>100%</span></div>
+        <div class="prob-label" id="expected-loss"></div>
         <div class="verdict" id="verdict"></div>
         <ul class="facts">
           <li><span>Compared with the average fraud rate (3.5%)</span><span id="ratio">–</span></li>
@@ -240,6 +241,8 @@ function render(score, threshold) {
   fill.style.background = `var(--${level})`;
   document.getElementById("threshold-mark").style.left = threshold * 100 + "%";
   document.getElementById("threshold-label").textContent = "alert at " + pct(threshold);
+  document.getElementById("expected-loss").textContent =
+    "expected loss: $" + score.expected_loss_usd.toFixed(2) + " (probability × amount, for sorting the review queue)";
 
   const verdict = document.getElementById("verdict");
   verdict.className = "verdict " + level;

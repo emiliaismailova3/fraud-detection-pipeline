@@ -1,0 +1,6 @@
+|                                                        |   share of fraud cases caught |   reviewed cases that are fraud |   share of fraud dollars caught |   fraud dollars caught |   fraud dollars in month |
+|:-------------------------------------------------------|------------------------------:|--------------------------------:|--------------------------------:|-----------------------:|-------------------------:|
+| ('validation', 'fraud probability')                    |                        0.2603 |                          0.8793 |                          0.1769 |                  79628 |                   450145 |
+| ('validation', 'expected loss (probability x amount)') |                        0.1772 |                          0.5986 |                          0.4154 |                 187002 |                   450145 |
+| ('test', 'fraud probability')                          |                        0.2434 |                          0.8479 |                          0.1506 |                  71868 |                   477356 |
+| ('test', 'expected loss (probability x amount)')       |                        0.1461 |                          0.5089 |                          0.3588 |                 171253 |                   477356 |
