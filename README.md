@@ -10,8 +10,8 @@ network, and the best model is served as a containerised REST API.
 
 | | |
 |---|---|
-| **Best model** | LightGBM: **PR-AUC 0.515**, ROC-AUC 0.902 on a held-out future month |
-| **Business view** | Reviewing the top 1% riskiest transactions catches **24% of all fraud** at **84% precision** |
+| **Best model** | LightGBM: **PR-AUC 0.521**, ROC-AUC 0.901 on a held-out future month |
+| **Business view** | Reviewing the top 1% riskiest transactions catches **24% of all fraud** at **85% precision** |
 | **Stack** | PostgreSQL · SQL window functions · pandas · XGBoost · LightGBM · PyTorch · FastAPI · Docker · Linux (WSL2/Ubuntu) |
 
 ![Demo page: a real fraudulent transaction from the test month scored at 96%](reports/figures/demo_page.png)
@@ -28,13 +28,16 @@ manual training loop) · REST API design · Docker · automated tests incl. trai
 
 Trained on months 1–4, early-stopped on month 5, reported on month 6 (never seen during training or tuning).
 
-| Model | PR-AUC | ROC-AUC | Recall @ 1% alerts | Precision @ 1% alerts |
-|---|---|---|---|---|
-| Logistic regression (baseline) | 0.418 | 0.850 | 23.2% | 80.7% |
-| XGBoost | 0.500 | 0.882 | 24.1% | 83.8% |
-| **LightGBM** | **0.515** | **0.902** | **24.2%** | **84.1%** |
-| PyTorch MLP (embeddings) | 0.491 | 0.886 | 23.3% | 81.2% |
+| Model | PR-AUC | ROC-AUC | Recall @ 1% alerts | Precision @ 1% alerts | Precision | Recall | F1 |
+|---|---|---|---|---|---|---|---|
+| Logistic regression (baseline) | 0.4179 | 0.8499 | 23.15% | 80.65% | 50.36% | 37.99% | 0.4331 |
+| XGBoost | 0.5004 | 0.8815 | 24.25% | 84.45% | 57.28% | 46.34% | 0.5123 |
+| **LightGBM** | **0.5208** | **0.9008** | **24.34%** | **84.79%** | 56.33% | **49.58%** | **0.5274** |
+| PyTorch MLP (embeddings) | 0.4847 | 0.8820 | 23.51% | 81.88% | 56.77% | 43.22% | 0.4908 |
+| Isolation Forest (unsupervised) | 0.0433 | 0.5988 | 0.35% | 1.21% | 4.47% | 13.94% | 0.0677 |
 
+Precision, recall and F1 are measured at each model's max-F1 threshold, chosen on the
+validation month (thresholds in [`reports/model_comparison.md`](reports/model_comparison.md)).
 Random guessing gives PR-AUC ≈ 0.035 (the fraud rate).
 
 ![Precision-recall curves](reports/figures/pr_curves.png)
@@ -43,8 +46,8 @@ Random guessing gives PR-AUC ≈ 0.035 (the fraud rate).
 - **Gradient boosting wins on tabular data**, as it usually does: trees handle missing
   values, skewed amounts and high-cardinality IDs natively. The neural net needs
   log transforms, scaling, missing-value flags and embeddings to get close.
-- The **PyTorch MLP is within 0.025 PR-AUC of LightGBM**: a reasonable candidate for an
-  ensemble, since it makes different errors.
+- The **PyTorch MLP is within 0.04 PR-AUC of LightGBM** (0.4847 vs 0.5208): a reasonable
+  candidate for an ensemble, since it makes different errors.
 - **Why PR-AUC, not accuracy:** a model that never predicts fraud is 96.5% accurate.
   PR-AUC measures how well fraud is ranked above legitimate payments without flooding
   analysts with false alarms.
@@ -58,11 +61,12 @@ Random guessing gives PR-AUC ≈ 0.035 (the fraud rate).
 A model outputs a probability; the business needs a yes/no decision. The threshold is
 **always chosen on the validation month** and then applied unchanged to the test month.
 
-- **API threshold: 0.732 (LightGBM)**, the score above which the top **1%** of validation
+- **API threshold: 0.748 (LightGBM)**, the score above which the top **1%** of validation
   transactions fall. This is an *alert-budget* rule: a fraud team can only review so many
   cases a day, so the threshold is set by capacity, not by a generic default like 0.5 (with
-  3.5% fraud, a 0.5 cut-off would be arbitrary). At this budget LightGBM catches ~24% of
-  all fraud and ~84% of alerts are real fraud (table above). Stored in `models/api_config.json`.
+  3.5% fraud, a 0.5 cut-off would be arbitrary). On the test month it flags 0.99% of
+  transactions, catches 24.18% of all fraud, and 84.89% of alerts are real fraud
+  (F1 0.3764). Stored in `models/api_config.json`.
 - **Max-F1 threshold per model**, the point that balances precision and recall. It is
   reported for every model in `reports/model_comparison.md`, together with precision, recall
   and F1 at that threshold. It flags more transactions (higher recall, lower precision); it is
@@ -76,7 +80,9 @@ rate in train). Random trees split on random features at random values; an outli
 isolated in **few splits**, so a **short average path = anomaly**. It shows how far
 "unusual" gets us when labels are late or missing (chargebacks arrive weeks later). Its
 limit: fraud that imitates normal behaviour is not an outlier, so it should be expected to
-trail the supervised models, which learn what fraud looks like from labels. Its PR-AUC, recall and precision are in the same comparison table.
+trail the supervised models, which learn what fraud looks like from labels. It does:
+PR-AUC 0.0433, barely above random (0.035), against 0.5208 for LightGBM. Full numbers are
+in the results table above.
 
 ---
 

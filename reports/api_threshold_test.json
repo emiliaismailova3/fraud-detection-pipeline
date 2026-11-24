@@ -1,0 +1,9 @@
+{
+  "model": "lightgbm",
+  "threshold": 0.7482,
+  "rule": "top 1% of validation scores (alert budget)",
+  "precision": 0.8489,
+  "recall": 0.2418,
+  "f1": 0.3764,
+  "alert_rate": 0.0099
+}

@@ -1,0 +1,11 @@
+{
+  "pr_auc": 0.0433,
+  "roc_auc": 0.5988,
+  "recall_at_1%_alerts": 0.0035,
+  "precision_at_1%_alerts": 0.0121,
+  "precision_at_contamination": 0.0162,
+  "recall_at_contamination": 0.0241,
+  "f1_at_contamination": 0.0194,
+  "alert_rate_at_contamination": 0.0517,
+  "contamination": 0.0353
+}

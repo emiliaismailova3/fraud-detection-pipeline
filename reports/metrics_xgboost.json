@@ -1,6 +1,6 @@
 {
-  "pr_auc": 0.5,
-  "roc_auc": 0.8823,
-  "recall_at_1%_alerts": 0.2405,
-  "precision_at_1%_alerts": 0.8378
+  "pr_auc": 0.5004,
+  "roc_auc": 0.8815,
+  "recall_at_1%_alerts": 0.2425,
+  "precision_at_1%_alerts": 0.8445
 }
